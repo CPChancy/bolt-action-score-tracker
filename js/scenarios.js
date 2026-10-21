@@ -9,3 +9,7 @@ const PRESETS = {
   "Envelopment":         [{l:"Enemy unit destroyed",v:1},{l:"Unit in enemy deployment zone",v:2},{l:"Unit exited enemy table edge",v:3}],
   "Custom / event":      [{l:"Enemy unit destroyed",v:1},{l:"Objective held",v:2}]
 };
+// A fresh, editable copy of a scenario's preset scoring, so edits never change the presets themselves.
+const presetRows = scen => PRESETS[scen].map(r=>({...r}));
+// The <option> list for a scenario dropdown, with the given scenario selected.
+const scenarioOptions = selected => Object.keys(PRESETS).map(k=>`<option${k===selected?" selected":""}>${esc(k)}</option>`).join("");
