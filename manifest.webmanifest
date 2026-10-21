@@ -1,6 +1,6 @@
 {
-  "name": "Field Score Calculator",
-  "short_name": "Score Tracker",
+  "name": "SITREP",
+  "short_name": "SITREP",
   "description": "Victory-point tally for Bolt Action and Konflikt '47 games.",
   "start_url": "./index.html",
   "scope": "./",
