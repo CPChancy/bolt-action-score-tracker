@@ -1,0 +1,299 @@
+<!doctype html>
+<html lang="en-GB">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover">
+<title>Field Score Calculator</title>
+<meta name="description" content="Victory-point tally for Bolt Action and Konflikt '47 games.">
+<meta name="theme-color" content="#1F2620">
+<link rel="manifest" href="manifest.webmanifest">
+<link rel="icon" type="image/png" href="icons/icon-192.png">
+<link rel="apple-touch-icon" href="icons/icon-192.png">
+<meta name="apple-mobile-web-app-capable" content="yes">
+<meta name="mobile-web-app-capable" content="yes">
+<meta name="apple-mobile-web-app-title" content="Score Tracker">
+<meta name="apple-mobile-web-app-status-bar-style" content="black-translucent">
+<link rel="stylesheet" href="https://fonts.googleapis.com/css2?family=Big+Shoulders+Stencil+Display:wght@600;800&family=IBM+Plex+Sans:wght@400;500;600&family=IBM+Plex+Mono:wght@500;600&display=swap">
+<style>
+:root{padding-top:env(safe-area-inset-top,0px);padding-bottom:env(safe-area-inset-bottom,0px)}
+html,body{margin:0}
+[hidden]{display:none!important}
+img{max-width:100%}
+</style>
+<style>
+/* Layout: a single field-report column — game setup, two side-by-side army ledgers, then a result slip ready to paste into Discord */
+:root{
+  --bg:#E6EAE1; --panel:#F5F7F2; --ink:#1E241D; --muted:#5D675A; --line:#C6CDBF;
+  --accent:#B8860B; --accent-ink:#1E241D;
+  --a:#3D5A73; --a-soft:#DCE5EC; --b:#8A3B2E; --b-soft:#F0DEDA;
+  --good:#3F7A3A; --draw:#8A7A2E;
+  --display:"Big Shoulders Stencil Display", "Arial Narrow", Impact, sans-serif;
+  --body:"IBM Plex Sans", system-ui, -apple-system, "Segoe UI", sans-serif;
+  --mono:"IBM Plex Mono", ui-monospace, Menlo, Consolas, monospace;
+}
+@media (prefers-color-scheme: dark){:root:not([data-theme="light"]){
+  --bg:#151A16; --panel:#1F2620; --ink:#E4E9DF; --muted:#9AA595; --line:#343D34;
+  --accent:#E0A82E; --accent-ink:#151A16;
+  --a:#86A9C6; --a-soft:#22303B; --b:#D98B7C; --b-soft:#3A2522;
+  --good:#7FBF76; --draw:#D2C068; color-scheme:dark}}
+:root[data-theme="dark"]{
+  --bg:#151A16; --panel:#1F2620; --ink:#E4E9DF; --muted:#9AA595; --line:#343D34;
+  --accent:#E0A82E; --accent-ink:#151A16;
+  --a:#86A9C6; --a-soft:#22303B; --b:#D98B7C; --b-soft:#3A2522;
+  --good:#7FBF76; --draw:#D2C068; color-scheme:dark}
+*{box-sizing:border-box}
+body{background:var(--bg);color:var(--ink);font-family:var(--body);font-size:15px;line-height:1.45;
+  padding-left:max(16px,env(safe-area-inset-left,0px));padding-right:max(16px,env(safe-area-inset-right,0px));padding-block:20px 40px}
+.wrap{max-width:760px;margin:0 auto;display:flex;flex-direction:column;gap:18px}
+header{display:flex;flex-direction:column;gap:4px}
+h1{font-family:var(--display);font-weight:800;font-size:2.4rem;line-height:1;margin:0;letter-spacing:.02em;text-transform:uppercase;text-wrap:balance}
+.sub{color:var(--muted);margin:0;font-size:.92rem}
+.label{font-size:.72rem;letter-spacing:.09em;text-transform:uppercase;color:var(--muted);font-weight:600}
+section.panel{background:var(--panel);border:1px solid var(--line);border-radius:6px;padding:14px;display:flex;flex-direction:column;gap:12px}
+.row{display:flex;flex-wrap:wrap;gap:10px}
+.field{display:flex;flex-direction:column;gap:4px;flex:1 1 150px;min-width:0}
+select,input[type=text],input[type=number]{font:inherit;color:var(--ink);background:var(--bg);border:1px solid var(--line);border-radius:4px;padding:8px 10px;width:100%}
+select:focus-visible,input:focus-visible,button:focus-visible{outline:2px solid var(--accent);outline-offset:2px}
+.seg{display:flex;border:1px solid var(--line);border-radius:4px;overflow:hidden}
+.seg button{flex:1;font:inherit;font-weight:600;background:transparent;color:var(--muted);border:0;padding:8px 6px;cursor:pointer}
+.seg button[aria-pressed=true]{background:var(--accent);color:var(--accent-ink)}
+.turns{display:flex;gap:6px;flex-wrap:wrap}
+.turns button{font-family:var(--mono);font-weight:600;width:38px;height:38px;border-radius:4px;border:1px solid var(--line);background:var(--bg);color:var(--ink);cursor:pointer}
+.turns button.done{background:var(--ink);color:var(--bg);border-color:var(--ink)}
+.turns button.t7{border-style:dashed}
+.note{font-size:.82rem;color:var(--muted);margin:0}
+.armies{display:grid;grid-template-columns:1fr 1fr;gap:12px}
+@media (max-width:620px){.armies{grid-template-columns:1fr}}
+.army{border-radius:6px;padding:12px;display:flex;flex-direction:column;gap:10px;min-width:0;border:1px solid var(--line);background:var(--panel)}
+.army.a{border-top:4px solid var(--a)} .army.b{border-top:4px solid var(--b)}
+.army .name{font-family:var(--display);font-weight:600;font-size:1.3rem;text-transform:uppercase;letter-spacing:.03em;background:transparent;border:0;border-bottom:1px dashed var(--line);border-radius:0;padding:2px 0}
+.army.a .name{color:var(--a)} .army.b .name{color:var(--b)}
+.line{display:grid;grid-template-columns:1fr auto;align-items:center;gap:8px;padding-block:6px;border-bottom:1px solid var(--line)}
+.line:last-of-type{border-bottom:0}
+.line .what{min-width:0}
+.line .what b{font-weight:500;display:block}
+.line .what small{color:var(--muted);font-family:var(--mono);font-size:.75rem}
+.stepper{display:flex;align-items:center;gap:4px}
+.stepper button{width:36px;height:36px;border-radius:4px;border:1px solid var(--line);background:var(--bg);color:var(--ink);font-size:1.2rem;line-height:1;cursor:pointer}
+.army.a .stepper button.plus{background:var(--a-soft)} .army.b .stepper button.plus{background:var(--b-soft)}
+.stepper output{font-family:var(--mono);font-weight:600;min-width:28px;text-align:center;font-variant-numeric:tabular-nums}
+.total{display:flex;justify-content:space-between;align-items:baseline;padding-top:6px;border-top:2px solid var(--ink)}
+.total span:last-child{font-family:var(--mono);font-weight:600;font-size:2rem;font-variant-numeric:tabular-nums}
+.army.a .total span:last-child{color:var(--a)} .army.b .total span:last-child{color:var(--b)}
+.slip{border:2px solid var(--ink);border-radius:6px;padding:14px;display:flex;flex-direction:column;gap:10px;background:var(--panel)}
+.verdict{font-family:var(--display);font-weight:800;font-size:1.9rem;text-transform:uppercase;line-height:1.05;text-wrap:balance}
+.verdict.win{color:var(--good)} .verdict.draw{color:var(--draw)} .verdict.live{color:var(--muted)}
+.score{font-family:var(--mono);font-size:1.05rem;font-variant-numeric:tabular-nums}
+.btns{display:flex;flex-wrap:wrap;gap:8px}
+.btn{font:inherit;font-weight:600;border-radius:4px;padding:9px 14px;cursor:pointer;border:1px solid var(--ink);background:var(--ink);color:var(--bg)}
+.btn.ghost{background:transparent;color:var(--ink);border-color:var(--line)}
+pre#report{margin:0;font-family:var(--mono);font-size:.82rem;white-space:pre-wrap;word-break:break-word;background:var(--bg);border:1px solid var(--line);border-radius:4px;padding:10px;user-select:all}
+details{border-top:1px solid var(--line);padding-top:10px}
+summary{cursor:pointer;font-weight:600}
+.edit{display:grid;grid-template-columns:1fr 70px 36px;gap:6px;align-items:center;margin-top:8px}
+.edit button{height:36px;border-radius:4px;border:1px solid var(--line);background:var(--bg);color:var(--ink);cursor:pointer}
+.toast{font-size:.85rem;color:var(--good);min-height:1.2em}
+@media (prefers-reduced-motion:no-preference){.total span:last-child{transition:color .2s}}
+</style>
+</head>
+<body>
+<div class="wrap">
+  <header>
+    <span class="label">Bolt Action · Konflikt '47</span>
+    <h1>Field Score Calculator</h1>
+    <p class="sub">Tally victory points as you play, then copy the result for the league channel.</p>
+  </header>
+
+  <section class="panel" aria-label="Game setup">
+    <div class="row">
+      <div class="field">
+        <label class="label" for="system">System</label>
+        <div class="seg" id="system" role="group">
+          <button type="button" data-sys="Bolt Action" aria-pressed="true">Bolt Action</button>
+          <button type="button" data-sys="Konflikt '47" aria-pressed="false">Konflikt '47</button>
+        </div>
+      </div>
+      <div class="field">
+        <label class="label" for="scenario">Scenario</label>
+        <select id="scenario"></select>
+      </div>
+    </div>
+    <div class="row">
+      <div class="field">
+        <label class="label" for="points">Game size (pts)</label>
+        <input id="points" type="number" min="0" step="50" value="1000">
+      </div>
+      <div class="field">
+        <label class="label" for="margin">Margin needed to win</label>
+        <input id="margin" type="number" min="1" step="1" value="1">
+      </div>
+    </div>
+    <div class="field">
+      <span class="label">Turn</span>
+      <div class="turns" id="turns"></div>
+      <p class="note">Turn 7 is dashed: roll at the end of turn 6 to see if it happens.</p>
+    </div>
+    <details>
+      <summary>Edit this scenario's scoring</summary>
+      <p class="note">Values are preset from the common scenario patterns. Check them against your rulebook or event pack and change anything that differs. Edits are saved on this device.</p>
+      <div id="editor"></div>
+      <div class="btns" style="margin-top:8px">
+        <button type="button" class="btn ghost" id="addRow">Add scoring line</button>
+        <button type="button" class="btn ghost" id="resetRows">Reset to preset</button>
+      </div>
+    </details>
+  </section>
+
+  <div class="armies">
+    <section class="army a" aria-label="Player one">
+      <input class="name" id="nameA" type="text" value="Allies" aria-label="Player one name">
+      <div id="linesA"></div>
+      <div class="total"><span class="label">Victory points</span><span id="totA">0</span></div>
+    </section>
+    <section class="army b" aria-label="Player two">
+      <input class="name" id="nameB" type="text" value="Axis" aria-label="Player two name">
+      <div id="linesB"></div>
+      <div class="total"><span class="label">Victory points</span><span id="totB">0</span></div>
+    </section>
+  </div>
+
+  <section class="slip" aria-label="Result">
+    <span class="label">Result</span>
+    <div class="verdict live" id="verdict">Game in progress</div>
+    <div class="score" id="scoreline"></div>
+    <div class="row">
+      <div class="field">
+        <label class="label" for="tpWin">League pts: win</label>
+        <input id="tpWin" type="number" step="0.5" value="3">
+      </div>
+      <div class="field">
+        <label class="label" for="tpDraw">Draw</label>
+        <input id="tpDraw" type="number" step="0.5" value="1">
+      </div>
+      <div class="field">
+        <label class="label" for="tpLoss">Loss</label>
+        <input id="tpLoss" type="number" step="0.5" value="0">
+      </div>
+    </div>
+    <pre id="report"></pre>
+    <div class="btns">
+      <button type="button" class="btn" id="copy">Copy for Discord</button>
+      <button type="button" class="btn ghost" id="newGame">Clear counters</button>
+      <button type="button" class="btn ghost" id="confirmClear" hidden>Tap again to clear</button>
+    </div>
+    <div class="toast" id="toast" role="status"></div>
+  </section>
+</div>
+
+<script>
+const PRESETS = {
+  "Seek & Destroy":      [{l:"Enemy unit destroyed",v:1}],
+  "Key Positions":       [{l:"Objective controlled at end",v:3},{l:"Enemy unit destroyed",v:1}],
+  "Breakthrough":        [{l:"Enemy unit destroyed",v:1},{l:"Unit in enemy deployment zone",v:2},{l:"Unit exited enemy table edge",v:3}],
+  "Top Secret":          [{l:"Intel carried off your edge",v:5},{l:"Holding the intel at end",v:3},{l:"Enemy unit destroyed",v:1}],
+  "Demolition":          [{l:"Enemy base destroyed",v:5},{l:"Enemy unit destroyed",v:1}],
+  "Hold Until Relieved": [{l:"Objective controlled at end",v:5},{l:"Enemy unit destroyed",v:1}],
+  "Envelopment":         [{l:"Enemy unit destroyed",v:1},{l:"Unit in enemy deployment zone",v:2},{l:"Unit exited enemy table edge",v:3}],
+  "Custom / event":      [{l:"Enemy unit destroyed",v:1},{l:"Objective held",v:2}]
+};
+const $ = id => document.getElementById(id);
+const store = { get(k,d){try{const v=localStorage.getItem(k);return v?JSON.parse(v):d}catch(e){return d}},
+                set(k,v){try{localStorage.setItem(k,JSON.stringify(v))}catch(e){}} };
+
+let custom = store.get("fsc-custom", {});
+let S = store.get("fsc-state", null) || {
+  sys:"Bolt Action", scen:"Breakthrough", turn:3, pts:1000, margin:1, nameA:"British Paras", nameB:"Luftwaffe Field Div.",
+  // example game in progress so the tool opens in a working state
+  counts:{A:[2,1,0], B:[3,0,0]}, tp:[3,1,0]
+};
+
+function rows(){ return custom[S.scen] || PRESETS[S.scen].map(r=>({...r})); }
+function ensureCounts(){
+  const n = rows().length;
+  ["A","B"].forEach(p=>{ S.counts[p] = (S.counts[p]||[]).slice(0,n); while(S.counts[p].length<n) S.counts[p].push(0); });
+}
+function total(p){ return rows().reduce((s,r,i)=>s + r.v*(S.counts[p][i]||0), 0); }
+
+function renderSetup(){
+  $("scenario").innerHTML = Object.keys(PRESETS).map(k=>`<option${k===S.scen?" selected":""}>${k}</option>`).join("");
+  document.querySelectorAll("#system button").forEach(b=>b.setAttribute("aria-pressed", b.dataset.sys===S.sys));
+  $("points").value=S.pts; $("margin").value=S.margin; $("nameA").value=S.nameA; $("nameB").value=S.nameB;
+  [$("tpWin").value,$("tpDraw").value,$("tpLoss").value]=S.tp;
+  $("turns").innerHTML = [1,2,3,4,5,6,7].map(t=>`<button type="button" class="${t<=S.turn?"done":""} ${t===7?"t7":""}" data-t="${t}" aria-label="Turn ${t}">${t}</button>`).join("");
+}
+function renderEditor(){
+  $("editor").innerHTML = rows().map((r,i)=>`<div class="edit">
+    <input type="text" id="el${i}" value="${r.l.replace(/"/g,"&quot;")}" aria-label="Scoring line ${i+1} name">
+    <input type="number" id="ev${i}" value="${r.v}" step="1" aria-label="VP each">
+    <button type="button" data-del="${i}" aria-label="Remove line">✕</button></div>`).join("");
+}
+function renderLines(){
+  ensureCounts();
+  ["A","B"].forEach(p=>{
+    $("lines"+p).innerHTML = rows().map((r,i)=>`<div class="line">
+      <div class="what"><b>${r.l}</b><small>${r.v} VP each</small></div>
+      <div class="stepper">
+        <button type="button" data-p="${p}" data-i="${i}" data-d="-1" aria-label="Remove one ${r.l}">−</button>
+        <output>${S.counts[p][i]}</output>
+        <button type="button" class="plus" data-p="${p}" data-i="${i}" data-d="1" aria-label="Add one ${r.l}">+</button>
+      </div></div>`).join("");
+  });
+  renderResult();
+}
+function renderResult(){
+  const a=total("A"), b=total("B"), m=Math.max(1,+S.margin||1), over=S.turn>=6;
+  $("totA").textContent=a; $("totB").textContent=b;
+  const diff=a-b, v=$("verdict");
+  let res, tA, tB;
+  if(Math.abs(diff)>=m){ const w=diff>0?S.nameA:S.nameB; res=`${w} ${over?"win":"lead"}`; tA=diff>0?S.tp[0]:S.tp[2]; tB=diff>0?S.tp[2]:S.tp[0]; }
+  else { res = over?"Draw":"Too close to call"; tA=tB=S.tp[1]; }
+  v.textContent = over ? res : `Turn ${S.turn}: ${res}`;
+  v.className = "verdict " + (!over?"live":(Math.abs(diff)>=m?"win":"draw"));
+  $("scoreline").textContent = `${S.nameA} ${a} – ${b} ${S.nameB}`;
+  const detail = p => rows().map((r,i)=>S.counts[p][i]?`  ${r.l}: ${S.counts[p][i]} × ${r.v} = ${S.counts[p][i]*r.v}`:null).filter(Boolean).join("\n") || "  (none)";
+  $("report").textContent =
+`**${S.sys} — ${S.scen}** (${S.pts} pts, ${over?`ended turn ${S.turn}`:`turn ${S.turn}`})
+**${S.nameA}** ${a} VP vs **${S.nameB}** ${b} VP
+Result: ${over?res:"in progress – "+res}${over?`\nLeague points: ${S.nameA} ${tA}, ${S.nameB} ${tB}`:""}
+${S.nameA}:
+${detail("A")}
+${S.nameB}:
+${detail("B")}`;
+  store.set("fsc-state", S);
+}
+function readEditor(){
+  const r = rows().map((x,i)=>({l:$("el"+i).value||"Scoring line", v:+$("ev"+i).value||0}));
+  custom[S.scen]=r; store.set("fsc-custom",custom); renderLines();
+}
+
+document.addEventListener("click", e=>{
+  const t=e.target.closest("button"); if(!t) return;
+  if(t.dataset.d){ const p=t.dataset.p,i=+t.dataset.i; S.counts[p][i]=Math.max(0,S.counts[p][i]+ +t.dataset.d); renderLines(); }
+  else if(t.dataset.t){ S.turn=+t.dataset.t; renderSetup(); renderResult(); }
+  else if(t.dataset.sys){ S.sys=t.dataset.sys; renderSetup(); renderResult(); }
+  else if(t.dataset.del!==undefined){ const r=rows(); r.splice(+t.dataset.del,1); ["A","B"].forEach(p=>S.counts[p].splice(+t.dataset.del,1)); custom[S.scen]=r; store.set("fsc-custom",custom); renderEditor(); renderLines(); }
+});
+$("scenario").onchange = e=>{ S.scen=e.target.value; S.counts={A:[],B:[]}; renderEditor(); renderLines(); };
+$("editor").addEventListener("input", readEditor);
+$("addRow").onclick = ()=>{ const r=rows(); r.push({l:"New objective",v:1}); custom[S.scen]=r; store.set("fsc-custom",custom); renderEditor(); renderLines(); };
+$("resetRows").onclick = ()=>{ delete custom[S.scen]; store.set("fsc-custom",custom); S.counts={A:[],B:[]}; renderEditor(); renderLines(); };
+["points","margin"].forEach(id=>$(id).addEventListener("input",e=>{ S[id==="points"?"pts":"margin"]=+e.target.value; renderResult(); }));
+["nameA","nameB"].forEach(id=>$(id).addEventListener("input",e=>{ S[id]=e.target.value||(id==="nameA"?"Player 1":"Player 2"); renderResult(); }));
+["tpWin","tpDraw","tpLoss"].forEach((id,i)=>$(id).addEventListener("input",e=>{ S.tp[i]=+e.target.value; renderResult(); }));
+$("newGame").onclick = ()=>{ $("newGame").hidden=true; $("confirmClear").hidden=false; setTimeout(()=>{$("newGame").hidden=false;$("confirmClear").hidden=true},3000); };
+$("confirmClear").onclick = ()=>{ S.counts={A:[],B:[]}; S.turn=1; $("newGame").hidden=false; $("confirmClear").hidden=true; renderSetup(); renderLines(); };
+$("copy").onclick = ()=>{
+  const txt=$("report").textContent, ok=()=>{$("toast").textContent="Copied. Paste it into Discord."};
+  navigator.clipboard.writeText(txt).then(ok).catch(()=>{ const r=document.createRange(); r.selectNodeContents($("report")); const s=getSelection(); s.removeAllRanges(); s.addRange(r); $("toast").textContent="Text selected. Copy it from your device menu."; });
+};
+
+renderSetup(); renderEditor(); renderLines();
+</script>
+
+<script>
+if ('serviceWorker' in navigator && location.protocol.startsWith('http')) {
+  window.addEventListener('load', () => navigator.serviceWorker.register('./sw.js').catch(()=>{}));
+}
+</script>
+</body>
+</html>
