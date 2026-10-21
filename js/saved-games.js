@@ -1,7 +1,7 @@
 // The saved games screen: listing, opening and deleting games.
 function openGame(id){
   const i = games.findIndex(g=>g.id===id); if(i<0) return;
-  games.unshift(games.splice(i,1)[0]); store.set("fsc-games", games);
+  games.unshift(games.splice(i,1)[0]); S = games[0]; store.set("fsc-games", games);
   go("game");
 }
 function renderGames(){
@@ -20,7 +20,7 @@ document.addEventListener("click", e=>{
   const t=e.target.closest("button"); if(!t) return;
   if(t.dataset.open){ openGame(t.dataset.open); }
   else if(t.dataset.remove){
-    if(t.dataset.armed){ games.splice(games.findIndex(g=>g.id===t.dataset.remove),1); store.set("fsc-games",games); renderGames(); }
+    if(t.dataset.armed){ const i=games.findIndex(g=>g.id===t.dataset.remove); if(i>=0) games.splice(i,1); store.set("fsc-games",games); renderGames(); }
     else { t.dataset.armed="1"; t.textContent="Confirm delete";
       setTimeout(()=>{ if(t.isConnected){ delete t.dataset.armed; t.textContent="Delete"; } },3000); }
   }

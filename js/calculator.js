@@ -1,5 +1,5 @@
 // The calculator screen: army ledgers, turn tracker, scoring editor and the Discord report.
-function rows(g=S){ return custom[g.scen] || PRESETS[g.scen].map(r=>({...r})); }
+function rows(g=S){ return g.rows; }
 function ensureCounts(){
   const n = rows().length;
   ["A","B"].forEach(p=>{ S.counts[p] = (S.counts[p]||[]).slice(0,n); while(S.counts[p].length<n) S.counts[p].push(0); });
@@ -7,7 +7,7 @@ function ensureCounts(){
 function total(p,g=S){ return rows(g).reduce((s,r,i)=>s + r.v*(g.counts[p][i]||0), 0); }
 
 function renderSetup(){
-  $("scenario").innerHTML = Object.keys(PRESETS).map(k=>`<option${k===S.scen?" selected":""}>${esc(k)}</option>`).join("");
+  $("scenario").innerHTML = scenarioOptions(S.scen);
   document.querySelectorAll("#system button").forEach(b=>b.setAttribute("aria-pressed", b.dataset.sys===S.sys));
   $("points").value=S.pts; $("margin").value=S.margin; $("nameA").value=S.nameA; $("nameB").value=S.nameB;
   $("playerA").value=S.playerA||""; $("playerB").value=S.playerB||"";
@@ -53,30 +53,31 @@ ${S.nameA}:
 ${detail("A")}
 ${S.nameB}:
 ${detail("B")}`;
-  S.updated = Date.now(); store.set("fsc-games", games);
 }
+// Records a change to the open game: saves it and marks it as just played.
+function changed(){ S.updated = Date.now(); store.set("fsc-games", games); }
 function readEditor(){
-  const r = rows().map((x,i)=>({l:$("el"+i).value||"Scoring line", v:+$("ev"+i).value||0}));
-  custom[S.scen]=r; store.set("fsc-custom",custom); renderLines();
+  S.rows = rows().map((x,i)=>({l:$("el"+i).value||"Scoring line", v:+$("ev"+i).value||0}));
+  renderLines(); changed();
 }
 
 document.addEventListener("click", e=>{
   const t=e.target.closest("button"); if(!t) return;
-  if(t.dataset.d){ const p=t.dataset.p,i=+t.dataset.i; S.counts[p][i]=Math.max(0,S.counts[p][i]+ +t.dataset.d); renderLines(); }
-  else if(t.dataset.t){ S.turn=+t.dataset.t; renderSetup(); renderResult(); }
-  else if(t.dataset.sys){ S.sys=t.dataset.sys; renderSetup(); renderResult(); }
-  else if(t.dataset.del!==undefined){ const r=rows(); r.splice(+t.dataset.del,1); ["A","B"].forEach(p=>S.counts[p].splice(+t.dataset.del,1)); custom[S.scen]=r; store.set("fsc-custom",custom); renderEditor(); renderLines(); }
+  if(t.dataset.d){ const p=t.dataset.p,i=+t.dataset.i; S.counts[p][i]=Math.max(0,S.counts[p][i]+ +t.dataset.d); renderLines(); changed(); }
+  else if(t.dataset.t){ S.turn=+t.dataset.t; renderSetup(); renderResult(); changed(); }
+  else if(t.dataset.sys){ S.sys=t.dataset.sys; renderSetup(); renderResult(); changed(); }
+  else if(t.dataset.del!==undefined){ const i=+t.dataset.del; S.rows.splice(i,1); ["A","B"].forEach(p=>S.counts[p].splice(i,1)); renderEditor(); renderLines(); changed(); }
 });
-$("scenario").onchange = e=>{ S.scen=e.target.value; S.counts={A:[],B:[]}; renderEditor(); renderLines(); };
+$("scenario").onchange = e=>{ S.scen=e.target.value; S.rows=presetRows(S.scen); S.counts={A:[],B:[]}; renderEditor(); renderLines(); changed(); };
 $("editor").addEventListener("input", readEditor);
-$("addRow").onclick = ()=>{ const r=rows(); r.push({l:"New objective",v:1}); custom[S.scen]=r; store.set("fsc-custom",custom); renderEditor(); renderLines(); };
-$("resetRows").onclick = ()=>{ delete custom[S.scen]; store.set("fsc-custom",custom); S.counts={A:[],B:[]}; renderEditor(); renderLines(); };
-["points","margin"].forEach(id=>$(id).addEventListener("input",e=>{ S[id==="points"?"pts":"margin"]=+e.target.value; renderResult(); }));
-["nameA","nameB"].forEach(id=>$(id).addEventListener("input",e=>{ S[id]=e.target.value||(id==="nameA"?"Player 1":"Player 2"); renderResult(); }));
-["playerA","playerB"].forEach(id=>$(id).addEventListener("input",e=>{ S[id]=e.target.value.trim(); renderResult(); }));
-["tpWin","tpDraw","tpLoss"].forEach((id,i)=>$(id).addEventListener("input",e=>{ S.tp[i]=+e.target.value; renderResult(); }));
+$("addRow").onclick = ()=>{ S.rows.push({l:"New objective",v:1}); renderEditor(); renderLines(); changed(); };
+$("resetRows").onclick = ()=>{ S.rows=presetRows(S.scen); S.counts={A:[],B:[]}; renderEditor(); renderLines(); changed(); };
+["points","margin"].forEach(id=>$(id).addEventListener("input",e=>{ S[id==="points"?"pts":"margin"]=+e.target.value; renderResult(); changed(); }));
+["nameA","nameB"].forEach(id=>$(id).addEventListener("input",e=>{ S[id]=e.target.value||(id==="nameA"?"Your army":"Opponent's army"); renderResult(); changed(); }));
+["playerA","playerB"].forEach(id=>$(id).addEventListener("input",e=>{ S[id]=e.target.value.trim(); renderResult(); changed(); }));
+["tpWin","tpDraw","tpLoss"].forEach((id,i)=>$(id).addEventListener("input",e=>{ S.tp[i]=+e.target.value; renderResult(); changed(); }));
 $("newGame").onclick = ()=>{ $("newGame").hidden=true; $("confirmClear").hidden=false; setTimeout(()=>{$("newGame").hidden=false;$("confirmClear").hidden=true},3000); };
-$("confirmClear").onclick = ()=>{ S.counts={A:[],B:[]}; S.turn=1; $("newGame").hidden=false; $("confirmClear").hidden=true; renderSetup(); renderLines(); };
+$("confirmClear").onclick = ()=>{ S.counts={A:[],B:[]}; S.turn=1; $("newGame").hidden=false; $("confirmClear").hidden=true; renderSetup(); renderLines(); changed(); };
 $("copy").onclick = ()=>{
   const txt=$("report").textContent, ok=()=>{$("toast").textContent="Copied. Paste it into Discord."};
   navigator.clipboard.writeText(txt).then(ok).catch(()=>{ const r=document.createRange(); r.selectNodeContents($("report")); const s=getSelection(); s.removeAllRanges(); s.addRange(r); $("toast").textContent="Text selected. Copy it from your device menu."; });

@@ -35,7 +35,7 @@ Double-click `index.html`. Everything works except offline install, which needs 
 Upload the changed files to the repository, then change `VERSION` in `sw.js` (e.g. `fsc-v2`) so phones fetch the new version. It updates the next time the app is opened online.
 
 ## Notes
-- Scoring values are editable in the app ("Edit this scenario's scoring") and saved on each device.
+- Scoring values are editable in the app ("Edit this game's scoring") and apply to that game only.
 - Game data is stored on the device only.
 - `index.html` has a security policy (the `Content-Security-Policy` line) that only lets the page load its own files plus Google Fonts. If you add anything from another website later, such as analytics or a different font provider, add its address to that line or the browser will block it.
 - Some browsers apply that policy strictly when `index.html` is opened by double-clicking. If the app looks unstyled or does nothing when opened that way, run it from a local web server or use the hosted GitHub Pages version.

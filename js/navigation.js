@@ -3,11 +3,11 @@ const SCREENS = ["menu","new","games","setup","game"];
 function go(s){ if(location.hash==="#"+s) show(); else location.hash=s; }
 function show(){
   let s = location.hash.slice(1) || "menu";
-  if(!SCREENS.includes(s) || (s==="game" && !games.length)) s = "menu";
+  if(!SCREENS.includes(s) || (s==="game" && !games.includes(S))) s = "menu";
   document.querySelectorAll("[data-screen]").forEach(el=>el.hidden = el.dataset.screen!==s);
   if(s==="games") renderGames();
   if(s==="setup") renderSetupForm();
-  if(s==="game"){ S = games[0]; renderSetup(); renderEditor(); renderLines(); }
+  if(s==="game"){ renderSetup(); renderEditor(); renderLines(); }
   window.scrollTo(0,0);
 }
 window.addEventListener("hashchange", show);
