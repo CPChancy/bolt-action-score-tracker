@@ -1,7 +1,9 @@
-// Offline cache for the Field Score Calculator.
+// Offline cache for SITREP.
 // Bump VERSION whenever you change any app file so phones pick up the update.
-const VERSION = 'fsc-v1';
-const CORE = ['./', './index.html', './manifest.webmanifest', './icons/icon-192.png', './icons/icon-512.png'];
+const VERSION = 'fsc-v6';
+const CORE = ['./', './index.html', './styles.css', './manifest.webmanifest', './icons/icon-192.png', './icons/icon-512.png',
+  './js/utils.js', './js/scenarios.js', './js/storage.js', './js/calculator.js',
+  './js/saved-games.js', './js/setup.js', './js/navigation.js', './js/app.js'];
 
 self.addEventListener('install', e => {
   e.waitUntil(caches.open(VERSION).then(c => c.addAll(CORE)).then(() => self.skipWaiting()));
