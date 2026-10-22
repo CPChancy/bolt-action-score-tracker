@@ -2,7 +2,7 @@
 
 A simple score tracker for **Bolt Action** and **Konflikt '47**. Keep track of victory points during your game without pen, paper or mental arithmetic.
 
-**Open the app:** https://cpchancy.github.io/bolt-action-score-tracker/
+**Open the app:** https://cpchancy.github.io/sitrep-battle-tracker/
 
 ## What it does
 
